@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Semaphoric</title>
+  <link rel="icon" href="favicon/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png">
+  <link rel="manifest" href="favicon/site.webmanifest">
+  <meta name="theme-color" content="#000000">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=Noto+Sans+Symbols+2&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <section id="stage">
+      <div id="views">
+        <div class="view" id="localView">
+          <pre id="ascii"></pre>
+          <canvas id="wireHeat" hidden></canvas>
+          <span class="view-tag split-only" id="localTag">LOCAL</span>
+        </div>
+        <div class="view split-only" id="remoteView">
+          <pre id="asciiRemote"></pre>
+          <span class="view-tag" id="remoteTag">RECEIVED</span>
+        </div>
+      </div>
+      <div id="menu" class="term-card" role="menu">
+        <button class="menu-item" type="button" role="menuitem" data-item="start">START CAMERA</button>
+        <button class="menu-item" type="button" role="menuitem" data-item="host">HOST CALL</button>
+        <button class="menu-item" type="button" role="menuitem" data-item="join">JOIN CALL</button>
+        <button class="menu-item minor" type="button" role="menuitem" data-item="manual">manual connect</button>
+        <p id="menuMsg" class="menu-msg" hidden></p>
+      </div>
+      <div id="callCard" class="term-card" hidden></div>
+      <video id="remoteVideo" muted playsinline autoplay hidden></video>
+      <div id="overlay" hidden></div>
+      <video id="source" muted playsinline hidden></video>
+      <div id="statsBox" hidden>
+        <button id="statsToggle" type="button" aria-expanded="true">STATS [-]</button>
+        <div id="stats"></div>
+      </div>
+      <pre id="wireBytes" hidden></pre>
+    </section>
+
+    <aside id="controls">
+      <header>
+        <h1>SEMAPHORIC<span class="cursor">&#9608;</span></h1>
+        <p class="sub">TEXT VIDEO TERMINAL</p>
+      </header>
+
+      <fieldset>
+        <legend>SETTINGS</legend>
+
+        <label>CELL SIZE
+          <span class="row">
+            <input id="cellSize" type="range" min="3" max="24" step="1">
+            <output id="cellSizeOut"></output>
+          </span>
+        </label>
+
+        <label>FONT
+          <select id="font">
+            <option>Consolas</option>
+            <option>Courier New</option>
+            <option>Lucida Console</option>
+            <option>monospace</option>
+          </select>
+        </label>
+
+        <label>CHARSET
+          <select id="charsetPreset">
+            <option value="standard">STANDARD</option>
+            <option value="braille">BRAILLE (2×4 DOTS)</option>
+            <option value="alphabet">ALPHABET</option>
+            <option value="custom">CUSTOM</option>
+          </select>
+          <input id="charset" type="text" spellcheck="false" autocomplete="off">
+        </label>
+
+        <label class="check"><input id="showSource" type="checkbox"> SHOW SOURCE VIDEO</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>BACKGROUND</legend>
+
+        <label>MODE
+          <select id="bgMode">
+            <option value="off">OFF</option>
+            <option value="auto">AUTO (MEDIAPIPE)</option>
+            <option value="manual">MANUAL (SUBTRACTION)</option>
+          </select>
+        </label>
+
+        <div id="bgManual" class="stack" hidden>
+          <button id="bgCapture" class="term-btn">CAPTURE BACKGROUND</button>
+          <button id="bgRecapture" class="term-btn" hidden>RECAPTURE</button>
+        </div>
+
+        <p id="bgStatus" class="status"></p>
+      </fieldset>
+
+      <fieldset id="connection" hidden>
+        <legend>CONNECTION</legend>
+        <div class="kv"><span>STATUS</span><span id="connStatus">SOLO</span></div>
+        <div class="kv"><span>MODE</span><span id="connMode">--</span></div>
+        <div class="kv" id="connCodeRow"><span>ROOM</span><span><span id="connCode"></span> <button id="connCopy" class="term-link" type="button">[COPY]</button></span></div>
+        <div class="kv"><span>PEER</span><span id="connPeer">--</span></div>
+        <pre id="connCounter" class="counter"></pre>
+        <canvas id="connGraph" class="graph"></canvas>
+        <p class="graph-legend"><span class="ascii-key">— ASCII</span> <span class="video-key">— VIDEO</span> <span class="dim">KBPS, LOG, 30 S</span></p>
+        <label class="check"><input id="compareVideo" type="checkbox"> COMPARE WITH REAL VIDEO</label>
+        <div class="kv"><span>LAYOUT</span><span>
+          <button id="layoutPip" class="term-link" type="button">[PIP]</button>
+          <button id="layoutSide" class="term-link" type="button">[SIDE]</button>
+        </span></div>
+        <p class="note">? DIRECT LINK: EACH BROWSER CAN SEE THE OTHER'S IP ADDRESS. NO NAMES, CODES OR FRAMES ARE STORED.</p>
+        <button id="disconnect" class="term-btn" type="button">DISCONNECT</button>
+      </fieldset>
+
+      <details id="experimental">
+        <summary>EXPERIMENTAL</summary>
+        <div class="details-body">
+          <p class="note">LOOPBACK: ENCODE → SIMULATED CHANNEL → DECODE, IN THIS TAB.</p>
+          <label class="check"><input id="showRemote" type="checkbox"> SHOW RECEIVED VIEW</label>
+
+          <div class="group">
+            <div class="group-title">BANDWIDTH CAP</div>
+            <label class="check"><input id="capOn" type="checkbox"> ADAPTIVE QUALITY</label>
+            <label>BUDGET
+              <span class="row">
+                <input id="capKbps" type="range" step="1">
+                <output id="capKbpsOut"></output>
+              </span>
+            </label>
+            <p id="capStatus" class="status"></p>
+          </div>
+
+          <div class="group">
+            <div class="group-title">PACKET LOSS</div>
+            <label class="check"><input id="lossOn" type="checkbox"> UNRELIABLE CHANNEL</label>
+            <label>DROP RATE
+              <span class="row">
+                <input id="lossPct" type="range" min="0" max="50" step="1">
+                <output id="lossPctOut"></output>
+              </span>
+            </label>
+            <label class="check"><input id="lossRequest" type="checkbox"> REQUEST KEYFRAME ON LOSS</label>
+          </div>
+
+          <div class="group">
+            <div class="group-title">WIRE VIEW</div>
+            <label class="check"><input id="wireOn" type="checkbox"> HEATMAP + RAW BYTES</label>
+          </div>
+        </div>
+      </details>
+
+      <button id="stop" class="term-btn stop-btn" disabled>STOP CAMERA</button>
+    </aside>
+  </main>
+
+  <script type="module" src="js/ui.js"></script>
+</body>
+</html>
