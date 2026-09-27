@@ -33,7 +33,7 @@ export async function decodeSignal(code) {
     if (!type) throw new Error('unknown prefix');
     return { type, sdp: text.slice(1) };
   } catch {
-    throw new Error('INVALID CODE');
+    throw new Error('THAT CODE LOOKS INCOMPLETE. COPY THE WHOLE THING AND TRY AGAIN.');
   }
 }
 
@@ -131,7 +131,7 @@ export class ManualTransport {
   // Caller step 2
   async acceptAnswer(code) {
     const desc = await decodeSignal(code);
-    if (desc.type !== 'answer') throw new Error('THAT IS AN OFFER CODE, NOT AN ANSWER');
+    if (desc.type !== 'answer') throw new Error('THAT IS YOUR OWN INVITE CODE. PASTE THE REPLY CODE YOUR FRIEND SENT BACK.');
     await this.pc.setRemoteDescription(desc);
   }
 
@@ -139,7 +139,7 @@ export class ManualTransport {
   async acceptOffer(code) {
     this.polite = true;
     const desc = await decodeSignal(code);
-    if (desc.type !== 'offer') throw new Error('THAT IS AN ANSWER CODE, NOT AN OFFER');
+    if (desc.type !== 'offer') throw new Error('THAT IS A REPLY CODE. PASTE THE INVITE CODE FROM THE PERSON STARTING THE CALL.');
     await this.pc.setRemoteDescription(desc);
     await this.pc.setLocalDescription(await this.pc.createAnswer());
     await waitForIce(this.pc);

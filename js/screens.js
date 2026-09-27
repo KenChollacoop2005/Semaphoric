@@ -89,6 +89,10 @@ export class Screens {
       e.preventDefault();
       return;
     }
+    if (this.cardKeys && this.cardKeys(e)) {
+      e.preventDefault();
+      return;
+    }
     if (e.key === 'Escape' && this.escHandler) {
       e.preventDefault();
       this.escHandler();
@@ -97,6 +101,7 @@ export class Screens {
 
   setCard(className, ...kids) {
     this.hideMenu();
+    this.cardKeys = null;
     this.card.className = `term-card ${className}`;
     this.card.replaceChildren(...kids.flat().filter((k) => k !== null && k !== undefined));
     this.card.hidden = false;
@@ -106,6 +111,7 @@ export class Screens {
     this.card.hidden = true;
     this.card.replaceChildren();
     this.escHandler = null;
+    this.cardKeys = null;
   }
 
   // Resolves trimmed text, or null on Esc
@@ -173,93 +179,144 @@ export class Screens {
   }
 
   // actions: [{ label, fn }]; last one is Esc
-  showFailure(title, hint, actions) {
+  showFailure(title, hint, actions, detail = '') {
     this.setCard('status-card',
       h('p', { class: 'card-status big' }, title),
       hint ? h('p', { class: 'card-hint wide' }, hint) : null,
+      detail ? h('p', { class: 'card-detail' }, detail) : null,
       h('p', { class: 'card-actions' }, actions.flatMap((a, i) => [i ? ' ' : null, termButton(a.label, a.fn)])));
     this.escHandler = actions[actions.length - 1].fn;
   }
 
-  // Two-column copy-paste signaling panel
-  showManual({ createOffer, acceptAnswer, acceptOffer, onBack }) {
-    const codeBox = (readOnly) => h('textarea', { class: 'code-box', readOnly, spellcheck: false, placeholder: readOnly ? '' : 'PASTE CODE HERE' });
-    const codeLabel = (text) => h('span', {}, text);
+  // Menu-style list in a card: [{ label, hint, fn }]
+  showChoice(kicker, intro, options, onBack) {
+    const hint = h('p', { class: 'card-hint wide choice-hint' });
+    let selected = 0;
+    const buttons = options.map((o, i) => h('button', {
+      class: 'menu-item', type: 'button',
+      onclick: () => o.fn(),
+      onmouseenter: () => select(i),
+    }, o.label));
+    const select = (i) => {
+      selected = (i + options.length) % options.length;
+      buttons.forEach((b, j) => b.classList.toggle('selected', j === selected));
+      hint.textContent = options[selected].hint;
+      buttons[selected].focus({ preventScroll: true });
+    };
+    this.setCard('choice-card',
+      h('p', { class: 'card-kicker' }, kicker),
+      h('p', { class: 'card-hint wide' }, intro),
+      buttons,
+      hint,
+      h('p', { class: 'card-hint' }, '↑↓ + ENTER · ESC TO GO BACK'));
+    this.cardKeys = (e) => {
+      if (e.key === 'ArrowDown') select(selected + 1);
+      else if (e.key === 'ArrowUp') select(selected - 1);
+      else if (e.key === 'Enter') options[selected].fn();
+      else return false;
+      return true;
+    };
+    this.escHandler = onBack;
+    select(0);
+  }
 
-    const offerOut = codeBox(true);
-    const offerLen = codeLabel('');
-    const copyOffer = termButton('COPY', () => copyText(offerOut.value, copyOffer), { disabled: true });
-    const answerIn = codeBox(false);
-    const callerStatus = h('p', { class: 'card-hint left' });
+  // One numbered step; later steps start dimmed
+  step(n, total, title, ...body) {
+    return h('div', { class: 'step pending' },
+      h('p', { class: 'step-title' }, `STEP ${n} OF ${total}  `, h('span', {}, title)),
+      body);
+  }
+
+  // Person starting the call: invite out, reply in
+  showManualCaller({ createOffer, acceptAnswer, onBack }) {
+    const invite = h('textarea', { class: 'code-box', readOnly: true, spellcheck: false });
+    const inviteLen = h('span', { class: 'dim' });
+    const copy = termButton('COPY INVITE CODE', () => copyText(invite.value, copy));
+    const reply = h('textarea', { class: 'code-box', spellcheck: false, placeholder: 'PASTE YOUR FRIEND\'S REPLY CODE HERE' });
+    const status1 = h('p', { class: 'card-error' });
+    const status3 = h('p', { class: 'card-hint left' });
+
+    const generate = termButton('GENERATE INVITE CODE', async () => {
+      generate.disabled = true;
+      status1.textContent = '';
+      try {
+        invite.value = await createOffer();
+        inviteLen.textContent = `  ${invite.value.length} CHARS`;
+        s1.classList.add('done');
+        s2.classList.remove('pending');
+        s3.classList.remove('pending');
+        reply.focus();
+      } catch (err) {
+        status1.textContent = err.message;
+        generate.disabled = false;
+      }
+    });
     const connect = termButton('CONNECT', async () => {
       connect.disabled = true;
+      status3.textContent = '';
       try {
-        await acceptAnswer(answerIn.value);
-        callerStatus.textContent = 'ANSWER ACCEPTED. LINKING...';
+        await acceptAnswer(reply.value);
+        status3.replaceChildren(h('span', { class: 'ellipsis' }, 'CONNECTING'));
       } catch (err) {
-        callerStatus.textContent = err.message;
+        status3.textContent = err.message;
         connect.disabled = false;
-      }
-    }, { disabled: true });
-    const create = termButton('CREATE OFFER', async () => {
-      create.disabled = true;
-      offerIn.disabled = true;
-      acceptBtn.disabled = true;
-      callerStatus.textContent = 'GATHERING NETWORK ROUTES...';
-      try {
-        offerOut.value = await createOffer();
-        offerLen.textContent = ` · ${offerOut.value.length} CHARS`;
-        copyOffer.disabled = false;
-        connect.disabled = false;
-        callerStatus.textContent = 'SEND THE OFFER, THEN PASTE THEIR ANSWER.';
-      } catch (err) {
-        callerStatus.textContent = err.message;
       }
     });
 
-    const offerIn = codeBox(false);
-    const answerOut = codeBox(true);
-    const answerLen = codeLabel('');
-    const copyAnswer = termButton('COPY', () => copyText(answerOut.value, copyAnswer), { disabled: true });
-    const calleeStatus = h('p', { class: 'card-hint left' });
-    const acceptBtn = termButton('CREATE ANSWER', async () => {
-      acceptBtn.disabled = true;
+    const s1 = this.step(1, 3, 'CREATE YOUR INVITE CODE',
+      h('p', { class: 'step-text' }, 'The code holds the details your friend\'s browser needs to reach yours. It contains no video or personal info.'),
+      h('p', {}, generate), status1);
+    const s2 = this.step(2, 3, 'SEND IT TO YOUR FRIEND',
+      h('p', {}, copy, inviteLen), invite,
+      h('p', { class: 'step-text' }, 'Send it any way you like: text, email, chat. Tell them to open Semaphoric, pick MANUAL CONNECT, then MY FRIEND SENT ME A CODE, and paste it in. They will get a reply code to send back to you.'));
+    const s3 = this.step(3, 3, 'PASTE THEIR REPLY CODE',
+      reply, h('p', {}, connect), status3);
+    s1.classList.remove('pending');
+
+    this.setCard('manual-card',
+      h('p', { class: 'card-kicker' }, 'MANUAL CONNECT · STARTING THE CALL'),
+      s1, s2, s3,
+      h('p', { class: 'card-actions' }, termButton('BACK', onBack)));
+    this.escHandler = onBack;
+  }
+
+  // Person receiving: invite in, reply out
+  showManualCallee({ acceptOffer, onBack }) {
+    const invite = h('textarea', { class: 'code-box', spellcheck: false, placeholder: 'PASTE YOUR FRIEND\'S INVITE CODE HERE' });
+    const reply = h('textarea', { class: 'code-box', readOnly: true, spellcheck: false });
+    const replyLen = h('span', { class: 'dim' });
+    const copy = termButton('COPY REPLY CODE', () => copyText(reply.value, copy));
+    const status1 = h('p', { class: 'card-error' });
+
+    const create = termButton('CREATE REPLY CODE', async () => {
       create.disabled = true;
-      calleeStatus.textContent = 'GATHERING NETWORK ROUTES...';
+      status1.textContent = '';
       try {
-        answerOut.value = await acceptOffer(offerIn.value);
-        answerLen.textContent = ` · ${answerOut.value.length} CHARS`;
-        copyAnswer.disabled = false;
-        calleeStatus.textContent = 'SEND THIS ANSWER BACK TO THE CALLER.';
+        reply.value = await acceptOffer(invite.value);
+        replyLen.textContent = `  ${reply.value.length} CHARS`;
+        invite.readOnly = true;
+        s1.classList.add('done');
+        s2.classList.remove('pending');
       } catch (err) {
-        calleeStatus.textContent = err.message;
-        acceptBtn.disabled = false;
+        status1.textContent = err.message;
         create.disabled = false;
       }
     });
 
+    const s1 = this.step(1, 2, 'PASTE YOUR FRIEND\'S INVITE CODE',
+      h('p', { class: 'step-text' }, 'Your friend picked STARTING THE CALL and sent you a long code. Paste all of it here.'),
+      invite, h('p', {}, create), status1);
+    const s2 = this.step(2, 2, 'SEND THIS REPLY CODE BACK',
+      h('p', {}, copy, replyLen), reply,
+      h('p', { class: 'step-text' }, 'Send it back the same way. The call connects on its own as soon as they paste it. Keep this screen open.'),
+      h('p', { class: 'card-hint left' }, h('span', { class: 'ellipsis' }, 'WAITING FOR YOUR FRIEND')));
+    s1.classList.remove('pending');
+
     this.setCard('manual-card',
-      h('p', { class: 'card-kicker' }, 'MANUAL CONNECT'),
-      h('div', { class: 'manual-cols' },
-        h('div', { class: 'manual-col' },
-          h('p', { class: 'col-title' }, 'I AM CALLING'),
-          h('p', {}, '1. ', create),
-          h('p', {}, 'OFFER CODE', offerLen, ' ', copyOffer),
-          offerOut,
-          h('p', {}, '2. PASTE ANSWER CODE'),
-          answerIn,
-          h('p', {}, connect),
-          callerStatus),
-        h('div', { class: 'manual-col' },
-          h('p', { class: 'col-title' }, 'I WAS CALLED'),
-          h('p', {}, '1. PASTE OFFER CODE'),
-          offerIn,
-          h('p', {}, acceptBtn),
-          h('p', {}, '2. ANSWER CODE', answerLen, ' ', copyAnswer),
-          answerOut,
-          calleeStatus)),
-      h('p', { class: 'card-actions' }, termButton('BACK', onBack)),
-      h('p', { class: 'card-hint' }, 'NO SERVER: CODES CARRY THE CONNECTION DETAILS DIRECTLY.'));
+      h('p', { class: 'card-kicker' }, 'MANUAL CONNECT · ANSWERING A CALL'),
+      s1, s2,
+      h('p', { class: 'card-actions' }, termButton('BACK', onBack)));
     this.escHandler = onBack;
+    invite.focus();
   }
 }

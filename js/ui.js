@@ -35,6 +35,7 @@ const LOST_RETURN_MS = 3000;
 const BRAILLE_FIRST = 0x2800;
 const BRAILLE_LAST = 0x28ff;
 const NO_ROUTE_HINT = 'SOME NETWORKS BLOCK DIRECT BROWSER-TO-BROWSER CONNECTIONS.';
+const MANUAL_INTRO = 'NO ROOM SERVICE: YOU AND YOUR FRIEND SWAP TWO CODES (BY TEXT, EMAIL, ANYTHING) AND YOUR BROWSERS LINK DIRECTLY.';
 const STATUS_LABELS = {
   solo: 'SOLO', hosting: 'HOSTING', connecting: 'CONNECTING', linked: 'LINKED', lost: 'LOST', failed: 'FAILED',
 };
@@ -742,12 +743,26 @@ async function manualFlow(knownName = null) {
   if (name === null) return screens.showMenu();
   if (!await ensureCamera()) return;
   state.lastAttempt = { kind: 'manual', name };
-  screens.showManual({
-    createOffer: () => call.manualOffer(name),
-    acceptAnswer: (code) => call.manualAnswer(code),
-    acceptOffer: (code) => call.manualAccept(name, code),
-    onBack: leaveCall,
-  });
+  const back = () => manualFlow(name);
+  screens.showChoice('MANUAL CONNECT', MANUAL_INTRO, [
+    {
+      label: 'I\'M STARTING THE CALL',
+      hint: 'YOU GET AN INVITE CODE TO SEND TO YOUR FRIEND, THEN PASTE THE REPLY CODE THEY SEND BACK.',
+      fn: () => screens.showManualCaller({
+        createOffer: () => call.manualOffer(name),
+        acceptAnswer: (code) => call.manualAnswer(code),
+        onBack: () => { call.disconnect(); back(); },
+      }),
+    },
+    {
+      label: 'MY FRIEND SENT ME A CODE',
+      hint: 'PASTE THEIR INVITE CODE, THEN SEND THE REPLY CODE YOU GET BACK TO THEM.',
+      fn: () => screens.showManualCallee({
+        acceptOffer: (code) => call.manualAccept(name, code),
+        onBack: () => { call.disconnect(); back(); },
+      }),
+    },
+  ], leaveCall);
 }
 
 function retryLast() {
@@ -765,7 +780,7 @@ function showCallFailure(reason) {
     { label: 'RETRY', fn: () => { call.disconnect(); retryLast(); } },
     { label: 'TRY MANUAL CONNECT', fn: () => { call.disconnect(); manualFlow(name); } },
     { label: 'BACK', fn: leaveCall },
-  ]);
+  ], call.failInfo);
 }
 
 async function onCallStatus(status, detail) {

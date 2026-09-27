@@ -5,6 +5,8 @@ import {
 } from './protocol.js';
 
 export const CONNECT_TIMEOUT_MS = 20000;
+const MANUAL_REPLY_WAIT_MS = 10 * 60 * 1000;
+const ROUTE_NAMES = { host: 'LOCAL', srflx: 'PUBLIC', prflx: 'PEER-SEEN', relay: 'RELAY' };
 const STATS_POLL_MS = 1000;
 export const GRAPH_WINDOW_S = 30;
 
@@ -35,6 +37,7 @@ export class Call {
     this.peerName = '';
     this.transport = null;
     this.comparing = false;
+    this.failInfo = '';
     this.linkedAt = 0;
     this.startedAt = 0;
     clearTimeout(this.timeout);
@@ -99,7 +102,8 @@ export class Call {
     this.setStatus('connecting');
     await this.open('manual');
     const answer = await this.transport.acceptOffer(offerCode);
-    this.armTimeout();
+    // Human copy-paste comes next: wait long
+    this.armTimeout(MANUAL_REPLY_WAIT_MS, 'YOUR FRIEND NEVER USED THE REPLY CODE');
     return answer;
   }
 
@@ -111,11 +115,25 @@ export class Call {
     this.startedAt = performance.now();
   }
 
-  armTimeout() {
+  armTimeout(ms = CONNECT_TIMEOUT_MS, reason = 'NO ROUTE TO PEER') {
     clearTimeout(this.timeout);
     this.timeout = setTimeout(() => {
-      if (!this.linked) this.fail('NO ROUTE TO PEER');
-    }, CONNECT_TIMEOUT_MS);
+      if (!this.linked) this.fail(reason);
+    }, ms);
+  }
+
+  // Which network routes each side offered
+  diagnose() {
+    const pc = this.transport?.getPeerConnection?.();
+    if (!pc) return this.mode === 'room' ? 'NO PEER ANSWERED IN THIS ROOM.' : '';
+    const types = (desc) => new Set([...(desc?.sdp ?? '').matchAll(/ typ (\w+)/g)].map((m) => m[1]));
+    const fmt = (set) => [...set].map((t) => ROUTE_NAMES[t] ?? t.toUpperCase()).join(', ') || 'NONE';
+    const local = types(pc.localDescription);
+    const remote = types(pc.remoteDescription);
+    const lines = [`YOUR ROUTES: ${fmt(local)} · THEIRS: ${fmt(remote)} · ICE: ${pc.iceConnectionState.toUpperCase()}`];
+    if (!local.has('srflx')) lines.push('NO PUBLIC ROUTE ON YOUR SIDE: THIS NETWORK MAY BLOCK UDP.');
+    else if (remote.size && !remote.has('srflx')) lines.push('NO PUBLIC ROUTE ON THEIR SIDE: THEIR NETWORK MAY BLOCK UDP.');
+    return lines.join('\n');
   }
 
   async open(kind, options) {
@@ -174,9 +192,12 @@ export class Call {
     this.setStatus('lost', reason);
   }
 
+  // Diagnose before close tears the connection down
   fail(reason) {
     if (this.status === 'solo') return;
+    const info = this.diagnose();
     this.close(false);
+    this.failInfo = info;
     this.setStatus('failed', reason);
   }
 

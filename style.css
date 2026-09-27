@@ -175,7 +175,9 @@ main {
 
 .menu-item::before { content: '  '; }
 .menu-item.selected::before { content: '> '; }
-.menu-item.selected::after { content: '_'; animation: blink 1s steps(1) infinite; }
+/* Cursor always takes space; only shown when selected */
+.menu-item::after { content: '_'; opacity: 0; }
+.menu-item.selected::after { opacity: 1; animation: blink 1s steps(1) infinite; }
 .menu-item:focus { outline: none; }
 
 .menu-item.minor {
@@ -280,18 +282,39 @@ main {
   75% { content: '...'; }
 }
 
-.manual-card { font-size: 22px; width: min(980px, calc(100% - 64px)); }
+.choice-card .menu-item { font-size: 34px; }
+.choice-hint { min-height: 2.4em; }
 
-.manual-cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 28px;
+.manual-card { font-size: 22px; width: min(720px, calc(100% - 64px)); }
+
+.step {
+  margin: 10px 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--phosphor-faint);
+  transition: opacity 0.2s;
 }
 
-.manual-col .col-title {
-  font-size: 26px;
-  letter-spacing: 0.12em;
-  border-bottom: 1px solid var(--phosphor-faint);
+.step.pending { opacity: 0.35; pointer-events: none; }
+.step.done .step-title span::after { content: '  ✓'; }
+
+.step-title {
+  color: var(--phosphor-dim);
+  letter-spacing: 0.08em;
+}
+
+.step-title span { color: var(--phosphor); }
+
+.step-text {
+  color: var(--phosphor-dim);
+  font-size: 19px;
+  text-transform: uppercase;
+}
+
+.card-detail {
+  color: #ffb000;
+  font-size: 18px;
+  white-space: pre-line;
+  text-shadow: 0 0 4px rgba(255, 176, 0, 0.5);
 }
 
 .code-box {
