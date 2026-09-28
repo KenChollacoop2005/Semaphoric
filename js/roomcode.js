@@ -22,7 +22,7 @@ const CODE_DIGITS = 4;
 
 export const ROOM_CODE_PATTERN = /^[a-z]+-[a-z]+-\d{4}$/;
 
-// word-word-NNNN from crypto randomness
+// Room codes
 export function generateRoomCode() {
   const r = new Uint32Array(3);
   crypto.getRandomValues(r);

@@ -5,7 +5,7 @@ const HEX_PER_LINE = 16;
 const DELTA_RGB = [255, 176, 0];
 const KEY_RGB = [255, 60, 200];
 
-// Per-cell heatmap of sent cells, plus hex dump
+// Wire view
 export class WireView {
   constructor(canvas, bytesEl) {
     this.canvas = canvas;
@@ -23,7 +23,6 @@ export class WireView {
     this.image = this.ctx.createImageData(cols, rows);
   }
 
-  // Call once per send slot
   update(sentMask, key) {
     const { heat, isKey } = this;
     const px = this.image.data;

@@ -11,7 +11,7 @@ export const BG_GAIN_MIN = 0.25;
 export const BG_GAIN_MAX = 4;
 export const BG_GAIN_SMOOTHING = 0.3;
 
-// Manual background subtraction, per-cell statistics
+// Manual background model
 export class ManualBackground {
   constructor() {
     this.reset();
@@ -30,7 +30,6 @@ export class ManualBackground {
     this.m2 = new Float32Array(n);
   }
 
-  // Welford running mean and variance
   addSample(lum) {
     const k = ++this.count;
     const { mean, m2 } = this;
@@ -57,7 +56,6 @@ export class ManualBackground {
     return true;
   }
 
-  // Nearest-neighbour resample of model to new grid
   resize(oldCols, oldRows, cols, rows) {
     if (!this.ready) return;
     const n = cols * rows;
@@ -78,7 +76,7 @@ export class ManualBackground {
     this.ratios = new Float32Array(Math.ceil(n / BG_GAIN_SAMPLE_STRIDE));
   }
 
-  // Median brightness ratio vs model, from background cells
+  // Exposure compensation
   estimateGain(lum, useMask) {
     const { mean, stable, ratios } = this;
     let k = 0;
@@ -92,11 +90,10 @@ export class ManualBackground {
     return sorted[k >> 1];
   }
 
-  // Foreground mask: 1 = foreground, 0 = background
+  // Classification
   classify(lum, cols, rows, outFg) {
     const { mean, tolerance, stable, pending } = this;
 
-    // Undo global exposure drift before comparing
     let bgCells = 0;
     for (let i = 0; i < stable.length; i++) if (!stable[i]) bgCells++;
     const useMask = bgCells >= stable.length * BG_GAIN_MIN_BG_FRACTION;
@@ -120,7 +117,7 @@ export class ManualBackground {
   }
 }
 
-// Flip cells with too few matching neighbours
+// Speck removal
 export function removeSpecks(mask, cols, rows, minSame, out) {
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {

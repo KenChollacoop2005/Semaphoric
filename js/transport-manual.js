@@ -17,7 +17,7 @@ function fromBase64Url(text) {
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 
-// SDP to compact code: deflate + base64url
+// Signal codes
 export async function encodeSignal(desc) {
   const text = (desc.type === 'offer' ? OFFER_PREFIX : ANSWER_PREFIX) + desc.sdp;
   const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('deflate-raw'));
@@ -51,7 +51,7 @@ function waitForIce(pc) {
   });
 }
 
-// Raw RTCPeerConnection; copy-paste signaling, then in-band renegotiation
+// Manual transport
 export class ManualTransport {
   constructor() {
     this.kind = 'manual';
@@ -77,7 +77,6 @@ export class ManualTransport {
     pc.onconnectionstatechange = () => {
       if (['failed', 'closed'].includes(pc.connectionState)) this.lost();
     };
-    // Later track changes renegotiate over the signal channel
     pc.onnegotiationneeded = async () => {
       if (!this.open) return;
       try {
@@ -118,7 +117,7 @@ export class ManualTransport {
     if (this.onPeerLeave) this.onPeerLeave();
   }
 
-  // Caller step 1
+  // Caller
   async createOffer() {
     this.polite = false;
     this.bindChannel(this.pc.createDataChannel(FRAMES_LABEL));
@@ -128,14 +127,13 @@ export class ManualTransport {
     return encodeSignal(this.pc.localDescription);
   }
 
-  // Caller step 2
   async acceptAnswer(code) {
     const desc = await decodeSignal(code);
     if (desc.type !== 'answer') throw new Error('THAT IS YOUR OWN INVITE CODE. PASTE THE REPLY CODE YOUR FRIEND SENT BACK.');
     await this.pc.setRemoteDescription(desc);
   }
 
-  // Callee: offer in, answer out
+  // Callee
   async acceptOffer(code) {
     this.polite = true;
     const desc = await decodeSignal(code);
@@ -150,7 +148,7 @@ export class ManualTransport {
     if (this.signal?.readyState === 'open') this.signal.send(JSON.stringify({ type: desc.type, sdp: desc.sdp }));
   }
 
-  // Perfect-negotiation style glare handling
+  // Renegotiation
   async handleSignal(desc) {
     const pc = this.pc;
     const collision = desc.type === 'offer' && (this.makingOffer || pc.signalingState !== 'stable');

@@ -13,7 +13,6 @@ export class Stats {
     this.lastTime = 0;
   }
 
-  // Record one processed frame
   frame(now, timings, changedPct) {
     if (this.lastTime) {
       const instFps = 1000 / (now - this.lastTime);
@@ -25,7 +24,7 @@ export class Stats {
   }
 }
 
-// Long-run averages per background mode
+// Per-mode averages
 export class ModeStats {
   constructor() {
     this.reset();
@@ -37,7 +36,6 @@ export class ModeStats {
     this.lastTime = 0;
   }
 
-  // Skip first frame after a mode switch
   frame(mode, now, changedPct) {
     if (mode && mode === this.lastMode) {
       const m = this.modes[mode] ??= { frames: 0, ms: 0, changedSum: 0, changedN: 0 };
@@ -63,20 +61,18 @@ export class ModeStats {
   }
 }
 
-// Payload bytes on the wire: rolling rate plus totals
+// Wire stats
 export class WireStats {
   constructor() {
     this.reset();
   }
 
-  // Full reset, including rate window
   reset() {
     this.events = [];
     this.since = 0;
     this.resetTotals();
   }
 
-  // Per-config averages only
   resetTotals() {
     this.key = { n: 0, bytes: 0 };
     this.delta = { n: 0, bytes: 0, bitmask: 0, runs: 0, runsChosen: 0, cells: 0 };
@@ -85,7 +81,6 @@ export class WireStats {
     this.cells = 0;
   }
 
-  // Packet info from Sender, or control bytes
   record(now, info, cells) {
     if (!this.since) this.since = now;
     this.cells = cells;
@@ -141,7 +136,7 @@ export class WireStats {
   }
 }
 
-// Percent of cells differing between frames
+// Helpers
 export function percentChanged(a, b) {
   let n = 0;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) n++;

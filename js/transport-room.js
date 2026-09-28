@@ -5,7 +5,7 @@ const CONTROL_ACTION = 'ctl';
 const CTL_ACCEPT = 'accept';
 const CTL_FULL = 'full';
 
-// Trystero room, gated to exactly one peer
+// Room transport (Trystero)
 export async function openRoomTransport({ code, role }) {
   const { joinRoom } = await import(TRYSTERO_URL);
   const room = joinRoom({ appId: APP_ID }, code);
@@ -50,7 +50,7 @@ export async function openRoomTransport({ code, role }) {
     if (t.onPeerJoin) t.onPeerJoin();
   };
 
-  // Host admits the first peer, turns away the rest
+  // Peer gating
   room.onPeerJoin = (id) => {
     if (role !== 'host') return;
     if (peerId) {
@@ -67,7 +67,6 @@ export async function openRoomTransport({ code, role }) {
     if (t.onPeerLeave) t.onPeerLeave();
   };
 
-  // Joiner pairs only with the host that accepts it
   control.onMessage = (msg, { peerId: from }) => {
     if (role !== 'join' || peerId) return;
     if (msg === CTL_ACCEPT) accept(from);

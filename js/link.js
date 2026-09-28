@@ -7,7 +7,7 @@ export const DEFAULT_SEND_FPS = 15;
 export const DEFAULT_KEYFRAME_INTERVAL_S = 5;
 const SEND_SLACK_MS = 8;
 
-// Paces frames, picks keyframe or delta
+// Sender
 export class Sender {
   constructor() {
     this.fps = DEFAULT_SEND_FPS;
@@ -31,9 +31,7 @@ export class Sender {
     this.forceKey = true;
   }
 
-  // Packet info when a send slot is due, else null
   tick(now, grid, cols, rows) {
-    // Fixed schedule; resync if we fall a slot behind
     const interval = 1000 / this.fps;
     if (now < this.nextSend - SEND_SLACK_MS) return null;
     this.nextSend += interval;
@@ -57,7 +55,6 @@ export class Sender {
       info = { type: 'key', bytes, changed: grid.length };
     } else {
       const delta = encodeDelta(this.seq, this.epoch, this.last, grid, this.sentMask);
-      // Nothing changed: send nothing, keep seq
       if (!delta) return { type: 'empty', bytes: null, changed: 0 };
       info = { type: 'delta', ...delta };
     }
@@ -67,7 +64,7 @@ export class Sender {
   }
 }
 
-// Rebuilds the grid from received messages
+// Receiver
 export class Receiver {
   constructor() {
     this.requestOnLoss = true;
@@ -95,7 +92,6 @@ export class Receiver {
     if (this.onKeyRequest) this.onKeyRequest();
   }
 
-  // Malformed input: drop it, ask for a keyframe
   receive(buf) {
     try {
       this.handle(buf);
@@ -130,12 +126,10 @@ export class Receiver {
       case MSG_DELTA_BITMASK:
       case MSG_DELTA_RUNS: {
         const { seq, epoch } = deltaHeader(buf);
-        // Wrong grid or no base: unusable
         if (!this.synced || epoch !== this.epoch) {
           this.request();
           return;
         }
-        // Gap: apply anyway (visible glitch), maybe ask for recovery
         if (seq !== ((this.lastSeq + 1) & 0xffff)) {
           this.gaps++;
           if (this.requestOnLoss) this.request();
@@ -151,7 +145,7 @@ export class Receiver {
   }
 }
 
-// Optionally lossy pipe to a delivery function
+// Channel
 export class Channel {
   constructor(deliver) {
     this.deliver = deliver;
@@ -165,7 +159,6 @@ export class Channel {
     this.delivered = 0;
   }
 
-  // Unreliable sends may be dropped
   send(buf, reliable = false) {
     if (!reliable && this.lossEnabled && Math.random() * 100 < this.lossPct) {
       this.dropped++;

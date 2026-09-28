@@ -152,7 +152,6 @@ let cap = null;
 let frameHandle = 0;
 let lastStatsUpdate = 0;
 
-// Any receiver asking for recovery lands here
 function onKeyRequest() {
   state.keyRequests++;
   sender.requestKeyframe();
@@ -165,7 +164,7 @@ loopReceiver.onKeyRequest = () => {
 
 const activeChannel = () => (call.linked ? callChannel : loopChannel);
 
-// Grid dims for a cell size at current aspect
+// Grid and layout
 function gridFor(cellSize) {
   const width = cap ? cap.width : REFERENCE_WIDTH;
   const height = cap ? cap.height : REFERENCE_HEIGHT;
@@ -199,7 +198,6 @@ function rebuildGrid() {
   stats.reset();
   modeStats.reset();
   wire.resetTotals();
-  // Keep background model across resizes
   if (gridChanged) {
     if (state.bgPhase !== 'idle') {
       manual.reset();
@@ -214,7 +212,6 @@ function rebuildGrid() {
 
 const fitSize = (cols, rows, aspect, w, h) => `${Math.floor(Math.min(w / (cols * aspect), h / rows) * 100) / 100}px`;
 
-// Scale fonts so each grid fits its pane
 function fitFont() {
   const stack = fontStack(state.font);
   ui.ascii.style.fontFamily = stack;
@@ -248,7 +245,6 @@ function fitFont() {
   ui.asciiRemote.style.fontSize = size;
 }
 
-// Stage classes and tags for solo, split or call
 function applyStage() {
   const linked = call.linked;
   ui.stage.classList.toggle('call', linked);
@@ -269,7 +265,7 @@ function setPhase(phase, durationMs = 0) {
   updateBgUi();
 }
 
-// Countdown, then accumulate background samples
+// Background
 function stepBackgroundCapture(now) {
   if (state.bgPhase === 'countdown') {
     const left = Math.ceil((state.phaseEnd - now) / 1000);
@@ -290,7 +286,6 @@ function stepBackgroundCapture(now) {
   }
 }
 
-// Blank background cells; returns measured mode or null
 function applyBackground() {
   const mode = state.bgMode;
   if (mode === 'off') return 'off';
@@ -306,10 +301,9 @@ function applyBackground() {
   return mode;
 }
 
-// Encode; route to peer when linked, else loopback
+// Frame loop
 function sendFrame(now) {
   const linked = call.linked;
-  // Hidden tab: keep the link, stop sending
   if (linked && document.hidden) return;
   const ch = activeChannel();
   const helloKey = `${linked}|${state.cols}x${state.rows}`;
@@ -373,7 +367,6 @@ function processFrame() {
   const t4 = performance.now();
 
   const changed = state.hasPrev ? percentChanged(state.indices, state.prevIndices) : null;
-  // Swap current and previous buffers
   [state.prevIndices, state.indices] = [state.indices, state.prevIndices];
   state.hasPrev = true;
 
@@ -385,7 +378,6 @@ function processFrame() {
     updateCapUi(t4);
     if (state.wireOn && state.lastPacket) wireView.showPacket(state.lastPacket.info, state.lastPacket.seq);
   }
-  // Last: may rebuild the grid
   if (state.capOn && adaptive.update(t4, wire.kbps(t4))) applyCapLevel();
 }
 
@@ -397,7 +389,7 @@ function loadStatsOpen() {
   }
 }
 
-// Collapse to just the header button
+// Stats overlay
 function setStatsOpen(open) {
   state.statsOpen = open;
   ui.stats.hidden = !open;
@@ -505,11 +497,10 @@ function setCellSize(v) {
   rebuildGrid();
 }
 
-// Charset preset fills the editable box
+// Settings
 async function selectPreset(name) {
   state.preset = name;
   const mode = name === 'braille' ? 'braille' : 'ramp';
-  // Measure aspect only once braille font is in
   if (mode === 'braille') {
     try {
       await loadBrailleFont();
@@ -534,7 +525,7 @@ function setSplit(on) {
   applyStage();
 }
 
-// Undo on untick: close view we opened, resync receiver
+// Experimental
 function setLossEnabled(on) {
   loopChannel.lossEnabled = on;
   callChannel.lossEnabled = on;
@@ -597,14 +588,13 @@ function setWireView(on) {
   if (!on) wireView.clear();
 }
 
-// Run once per new camera frame
+// Camera
 function loop() {
   if (!cap) return;
   processFrame();
   frameHandle = cap.video.requestVideoFrameCallback(loop);
 }
 
-// Throws if the camera can't start
 async function startCamera() {
   if (cap) return;
   cap = await startCapture(ui.source);
@@ -618,7 +608,6 @@ async function startCamera() {
   frameHandle = cap.video.requestVideoFrameCallback(loop);
 }
 
-// Release camera; background model is session-bound
 function stop() {
   if (call.active) call.disconnect();
   if (!cap) return;
@@ -650,7 +639,7 @@ function stop() {
   screens.showMenu();
 }
 
-// --- Start menu and call flows ---
+// Start menu and call flows
 
 function loadName() {
   try {
@@ -814,7 +803,6 @@ async function onCallStatus(status, detail) {
   }
 }
 
-// Remote peer's grid may use a different glyph width
 async function onRemoteHello(h) {
   const sample = h.glyphs[h.glyphs.length - 1] || DEFAULT_ASPECT_SAMPLE;
   const code = sample.codePointAt(0);
@@ -907,7 +895,6 @@ function bindCall() {
   ui.layoutPip.addEventListener('click', () => setLayout('pip'));
   ui.layoutSide.addEventListener('click', () => setLayout('side'));
   ui.disconnect.addEventListener('click', leaveCall);
-  // Fresh keyframe when the tab comes back
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && call.linked) sender.requestKeyframe();
   });
@@ -983,7 +970,7 @@ function bindControls() {
 bindControls();
 bindCall();
 
-// Link with #word-word-1234 goes straight to join
+// Boot
 const hashCode = normalizeRoomCode(location.hash);
 if (ROOM_CODE_PATTERN.test(hashCode)) joinFlow(hashCode);
 else screens.showMenu();

@@ -18,7 +18,6 @@ export async function startCapture(video) {
   video.srcObject = stream;
   await video.play();
 
-  // Reference space for cell size, camera aspect
   const width = REFERENCE_WIDTH;
   const height = Math.round(REFERENCE_WIDTH * video.videoHeight / video.videoWidth);
 
@@ -28,7 +27,6 @@ export async function startCapture(video) {
   let sampleWidth = 0;
   let sampleHeight = 0;
 
-  // Sample canvas sized to grid, not camera
   function setGrid(cols, rows) {
     sampleWidth = cols * SAMPLES_X;
     sampleHeight = rows * SAMPLES_Y;
@@ -40,7 +38,6 @@ export async function startCapture(video) {
     luma = new Float32Array(sampleWidth * sampleHeight);
   }
 
-  // Draw current frame, return luminance 0..1
   function grab() {
     ctx.drawImage(video, 0, 0, sampleWidth, sampleHeight);
     const px = ctx.getImageData(0, 0, sampleWidth, sampleHeight).data;
@@ -60,7 +57,7 @@ export async function startCapture(video) {
 
 const AUTO_MODES = ['exposureMode', 'whiteBalanceMode', 'focusMode'];
 
-// Undo any manual mode a driver kept from earlier
+// Camera auto modes
 async function resetAutoExposure(track) {
   const caps = track.getCapabilities ? track.getCapabilities() : {};
   const before = track.getSettings();

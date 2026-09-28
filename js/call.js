@@ -10,7 +10,7 @@ const ROUTE_NAMES = { host: 'LOCAL', srflx: 'PUBLIC', prflx: 'PEER-SEEN', relay:
 const STATS_POLL_MS = 1000;
 export const GRAPH_WINDOW_S = 30;
 
-// One call: transport, remote receiver, measured rates
+// Call session
 export class Call {
   constructor() {
     this.listeners = {};
@@ -83,7 +83,7 @@ export class Call {
     await this.open('room', { code, role: 'join' });
   }
 
-  // Manual: caller creates the offer
+  // Manual connect
   async manualOffer(name) {
     this.begin('manual', 'caller', name);
     this.setStatus('connecting');
@@ -96,13 +96,11 @@ export class Call {
     this.armTimeout();
   }
 
-  // Manual: callee turns an offer into an answer
   async manualAccept(name, offerCode) {
     this.begin('manual', 'callee', name);
     this.setStatus('connecting');
     await this.open('manual');
     const answer = await this.transport.acceptOffer(offerCode);
-    // Human copy-paste comes next: wait long
     this.armTimeout(MANUAL_REPLY_WAIT_MS, 'YOUR FRIEND NEVER USED THE REPLY CODE');
     return answer;
   }
@@ -122,7 +120,7 @@ export class Call {
     }, ms);
   }
 
-  // Which network routes each side offered
+  // Diagnostics
   diagnose() {
     const pc = this.transport?.getPeerConnection?.();
     if (!pc) return this.mode === 'room' ? 'NO PEER ANSWERED IN THIS ROOM.' : '';
@@ -138,7 +136,6 @@ export class Call {
 
   async open(kind, options) {
     const t = await createTransport(kind, options);
-    // Aborted while loading
     if (this.status === 'solo') {
       t.close();
       return;
@@ -192,7 +189,6 @@ export class Call {
     this.setStatus('lost', reason);
   }
 
-  // Diagnose before close tears the connection down
   fail(reason) {
     if (this.status === 'solo') return;
     const info = this.diagnose();
@@ -201,7 +197,6 @@ export class Call {
     this.setStatus('failed', reason);
   }
 
-  // Host keeps the room open for the next peer
   resumeHosting() {
     this.receiver.reset();
     this.peerName = '';
@@ -222,7 +217,7 @@ export class Call {
     this.setStatus('solo');
   }
 
-  // Real webcam track over the same connection
+  // Real-video comparison
   setCompare(on, track, stream) {
     if (!this.linked || !this.transport) return;
     if (on && !this.comparing) {
@@ -241,7 +236,7 @@ export class Call {
     this.compareTrack = null;
   }
 
-  // Rates from getStats deltas plus app payload counters
+  // Network stats
   async pollStats() {
     const pc = this.transport?.getPeerConnection();
     if (!pc) return;

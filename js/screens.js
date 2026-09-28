@@ -2,7 +2,7 @@ const ESTABLISHED_MS = 1000;
 const COPIED_MS = 1200;
 const PROMPT_HINT = 'ENTER TO CONTINUE · ESC TO GO BACK';
 
-// Tiny DOM builder; strings become text nodes
+// DOM helpers
 function h(tag, props = {}, ...kids) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
@@ -33,7 +33,7 @@ export async function copyText(text, button) {
 
 const termButton = (label, onclick, extra = {}) => h('button', { class: 'term-link', type: 'button', onclick, ...extra }, `[${label}]`);
 
-// Start menu plus the centred call cards
+// Screens
 export class Screens {
   constructor({ menu, menuMsg, card }) {
     this.menu = menu;
@@ -114,7 +114,7 @@ export class Screens {
     this.cardKeys = null;
   }
 
-  // Resolves trimmed text, or null on Esc
+  // Prompt
   prompt(label, { value = '', maxLength = 64, validate = null } = {}) {
     return new Promise((resolve) => {
       const input = h('input', { class: 'prompt-input', type: 'text', value, maxLength, spellcheck: false, autocomplete: 'off' });
@@ -168,7 +168,6 @@ export class Screens {
     const line = h('p', { class: 'card-status big' }, 'LINK ESTABLISHED');
     this.setCard('status-card', line);
     return new Promise((resolve) => setTimeout(() => {
-      // Only clear if nothing replaced it meanwhile
       if (line.isConnected) this.clearCard();
       resolve();
     }, ESTABLISHED_MS));
@@ -178,7 +177,7 @@ export class Screens {
     this.setCard('status-card', h('p', { class: 'card-status big' }, text), hint ? h('p', { class: 'card-hint' }, hint) : null);
   }
 
-  // actions: [{ label, fn }]; last one is Esc
+  // Status cards
   showFailure(title, hint, actions, detail = '') {
     this.setCard('status-card',
       h('p', { class: 'card-status big' }, title),
@@ -188,7 +187,7 @@ export class Screens {
     this.escHandler = actions[actions.length - 1].fn;
   }
 
-  // Menu-style list in a card: [{ label, hint, fn }]
+  // Choice menu
   showChoice(kicker, intro, options, onBack) {
     const hint = h('p', { class: 'card-hint wide choice-hint' });
     let selected = 0;
@@ -220,14 +219,13 @@ export class Screens {
     select(0);
   }
 
-  // One numbered step; later steps start dimmed
+  // Manual connect
   step(n, total, title, ...body) {
     return h('div', { class: 'step pending' },
       h('p', { class: 'step-title' }, `STEP ${n} OF ${total}  `, h('span', {}, title)),
       body);
   }
 
-  // Person starting the call: invite out, reply in
   showManualCaller({ createOffer, acceptAnswer, onBack }) {
     const invite = h('textarea', { class: 'code-box', readOnly: true, spellcheck: false });
     const inviteLen = h('span', { class: 'dim' });
@@ -280,7 +278,6 @@ export class Screens {
     this.escHandler = onBack;
   }
 
-  // Person receiving: invite in, reply out
   showManualCallee({ acceptOffer, onBack }) {
     const invite = h('textarea', { class: 'code-box', spellcheck: false, placeholder: 'PASTE YOUR FRIEND\'S INVITE CODE HERE' });
     const reply = h('textarea', { class: 'code-box', readOnly: true, spellcheck: false });

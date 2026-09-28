@@ -6,12 +6,11 @@ const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 
 export const DEFAULT_ASPECT_SAMPLE = 'M';
 export const BRAILLE_ASPECT_SAMPLE = '⣿';
-// All 256 braille patterns share one width here
 export const BRAILLE_FONT = 'Noto Sans Symbols 2';
 
 const measureCtx = new OffscreenCanvas(1, 1).getContext('2d');
 
-// Chosen font, braille fallback, generic
+// Fonts
 export function fontStack(font) {
   return `"${font}", "${BRAILLE_FONT}", monospace`;
 }
@@ -20,25 +19,22 @@ export function loadBrailleFont() {
   return document.fonts.load(`16px "${BRAILLE_FONT}"`, '⠀' + BRAILLE_ASPECT_SAMPLE);
 }
 
-// Glyph width / font size for monospace font
 export function measureGlyphAspect(font, sample = DEFAULT_ASPECT_SAMPLE) {
   measureCtx.font = `${MEASURE_FONT_PX}px ${fontStack(font)}`;
   return measureCtx.measureText(sample).width / MEASURE_FONT_PX;
 }
 
-// Split charset into glyphs, 1 byte index cap
+// Charsets
 export function parseCharset(str) {
   return Array.from(str).slice(0, MAX_GLYPHS);
 }
 
-// All 256 braille patterns; index = dot bits
 export function brailleCharset() {
   let s = '';
   for (let i = 0; i < 256; i++) s += String.fromCharCode(BRAILLE_BASE + i);
   return s;
 }
 
-// Glyphs sorted light to dark by measured ink
 export function sortByCoverage(font, glyphs) {
   const size = COVERAGE_FONT_PX;
   const ctx = new OffscreenCanvas(size * 2, size * 2).getContext('2d', { willReadFrequently: true });
@@ -58,7 +54,6 @@ export function sortByCoverage(font, glyphs) {
     .map(([g]) => g);
 }
 
-// Preset text for the charset box
 export function presetCharset(name, font) {
   switch (name) {
     case 'braille': return brailleCharset();

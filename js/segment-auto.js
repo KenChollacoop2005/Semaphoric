@@ -7,7 +7,7 @@ const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/image_segment
 const AUTO_INPUT_WIDTH = 256;
 const AUTO_PERSON_THRESHOLD = 0.5;
 
-// MediaPipe selfie segmentation, per-cell person mask
+// Auto background (MediaPipe)
 export class AutoBackground {
   constructor() {
     this.ready = false;
@@ -33,7 +33,6 @@ export class AutoBackground {
       outputCategoryMask: false,
       outputConfidenceMasks: true,
     });
-    // GPU first, CPU fallback
     try {
       this.segmenter = await ImageSegmenter.createFromOptions(fileset, options('GPU'));
       this.delegate = 'GPU';
@@ -45,7 +44,6 @@ export class AutoBackground {
     this.ready = true;
   }
 
-  // Foreground mask: 1 = person, 0 = background
   classify(video, cols, rows, outFg) {
     const w = AUTO_INPUT_WIDTH;
     const h = Math.round(w * video.videoHeight / video.videoWidth);
@@ -63,7 +61,6 @@ export class AutoBackground {
         console.info(`MediaPipe confidence masks: ${masks.length}`);
         this.loggedMasks = true;
       }
-      // Person is last category
       const mask = masks[masks.length - 1];
       cellLuminance(mask.getAsFloat32Array(), mask.width, mask.height, cols, rows, this.cellConf);
     });

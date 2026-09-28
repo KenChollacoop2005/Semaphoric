@@ -7,7 +7,7 @@ const GRID_COLOR = 'rgba(51, 255, 102, 0.18)';
 const LABEL_COLOR = 'rgba(51, 255, 102, 0.55)';
 const LABEL_FONT = '12px VT323, monospace';
 
-// Rolling kbps graph, log scale, no library
+// Network graph
 export function drawNetGraph(canvas, history, capacity) {
   const dpr = window.devicePixelRatio || 1;
   const w = canvas.clientWidth;
@@ -37,7 +37,6 @@ export function drawNetGraph(canvas, history, capacity) {
     ctx.fillText(g >= 1000 ? `${g / 1000}M` : `${g}k`, 2, y(g) - 2);
   }
 
-  // Newest sample at the right edge
   const offset = capacity - history.length;
   const line = (key, color, include) => {
     ctx.strokeStyle = color;

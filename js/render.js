@@ -1,6 +1,5 @@
 const MISSING_GLYPH = ' ';
 
-// Glyph indices to multiline string
 export function gridToText(indices, cols, rows, glyphs) {
   let out = '';
   for (let r = 0; r < rows; r++) {

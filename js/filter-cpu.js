@@ -4,12 +4,12 @@ const BRAILLE_HIGH_PCT = 98;
 const BRAILLE_RANGE_SMOOTHING = 0.1;
 const BRAILLE_MIN_RANGE = 0.05;
 
-// Dot bit per [row][col] of a 2x4 braille cell
+// Braille dot bits
 const BRAILLE_BITS = [[0x01, 0x08], [0x02, 0x10], [0x04, 0x20], [0x40, 0x80]];
-// Ordered-dither thresholds, 2x4 Bayer-style
+// Dither thresholds
 const BRAILLE_THRESHOLDS = [[0, 4], [6, 2], [1, 5], [7, 3]].map((r) => r.map((k) => (k + 0.5) / 8));
 
-// Box-average luminance per cell
+// Cell luminance
 export function cellLuminance(luma, width, height, cols, rows, out) {
   for (let r = 0; r < rows; r++) {
     const y0 = Math.floor(r * height / rows);
@@ -27,7 +27,7 @@ export function cellLuminance(luma, width, height, cols, rows, out) {
   }
 }
 
-// Naive: brightness maps linearly onto ramp
+// Naive ramp
 export function naiveIndices(cellLum, rampLength, out) {
   const last = rampLength - 1;
   for (let i = 0; i < cellLum.length; i++) {
@@ -35,7 +35,7 @@ export function naiveIndices(cellLum, rampLength, out) {
   }
 }
 
-// Braille: one sample pixel per dot, needs 2x4 sampling
+// Braille filter
 export class BrailleFilter {
   constructor() {
     this.hist = new Uint32Array(256);
@@ -48,7 +48,6 @@ export class BrailleFilter {
     this.primed = false;
   }
 
-  // Percentile contrast range, smoothed over time
   updateRange(luma) {
     const hist = this.hist;
     hist.fill(0);

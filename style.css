@@ -25,7 +25,7 @@ html, body {
   text-shadow: var(--glow);
 }
 
-/* Scanlines over the UI, not the tube */
+/* Scanlines */
 body::after {
   content: '';
   position: fixed;
@@ -56,7 +56,7 @@ main {
   padding: 20px;
 }
 
-/* The tube */
+/* Stage */
 #stage {
   position: relative;
   z-index: 11;
@@ -84,7 +84,7 @@ main {
 
 #stage:not(.split):not(.call) .split-only { display: none; }
 
-/* Call, picture-in-picture: remote main, local in corner */
+/* Call layout */
 #stage.call.pip #localView {
   position: absolute;
   right: 36px;
@@ -140,7 +140,7 @@ main {
   pointer-events: none;
 }
 
-/* Centred terminal cards: menu and call screens */
+/* Terminal cards */
 .term-card {
   position: absolute;
   top: 50%;
@@ -175,7 +175,6 @@ main {
 
 .menu-item::before { content: '  '; }
 .menu-item.selected::before { content: '> '; }
-/* Cursor always takes space; only shown when selected */
 .menu-item::after { content: '_'; opacity: 0; }
 .menu-item.selected::after { opacity: 1; animation: blink 1s steps(1) infinite; }
 .menu-item:focus { outline: none; }
@@ -392,7 +391,7 @@ main {
   pointer-events: none;
 }
 
-/* Settings terminal */
+/* Sidebar */
 #controls {
   width: 300px;
   padding: 18px;

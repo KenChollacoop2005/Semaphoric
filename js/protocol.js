@@ -6,11 +6,9 @@ export const MSG_KEY_REQUEST = 17;
 export const MSG_BYE = 18;
 export const PROTOCOL_VERSION = 1;
 
-// type, seq u16, epoch u8, cols u16, rows u16
+// Header sizes
 export const KEY_HEADER_BYTES = 8;
-// type, seq u16, epoch u8
 export const DELTA_HEADER_BYTES = 4;
-// type, version, cols u16, rows u16, name length
 const HELLO_HEADER_BYTES = 7;
 const MAX_NAME_BYTES = 64;
 
@@ -57,6 +55,7 @@ function writeHeader(out, type, seq, epoch) {
   out[3] = epoch;
 }
 
+// Frame encoding
 export function encodeKeyframe(seq, epoch, cols, rows, grid) {
   const out = new Uint8Array(KEY_HEADER_BYTES + grid.length);
   writeHeader(out, MSG_KEYFRAME, seq, epoch);
@@ -66,7 +65,6 @@ export function encodeKeyframe(seq, epoch, cols, rows, grid) {
   return out;
 }
 
-// Changed cells vs prev; smaller of bitmask or runs
 export function encodeDelta(seq, epoch, prev, cur, sentMask) {
   const n = cur.length;
   let changed = 0, runs = 0, runBytes = 0, lastEnd = 0, i = 0;
@@ -115,7 +113,7 @@ export function encodeDelta(seq, epoch, prev, cur, sentMask) {
   return { bytes: out, changed, bitmaskSize, runsSize, format: useRuns ? 'runs' : 'bitmask' };
 }
 
-// Name, grid and charset so the peer can render
+// Control messages
 export function encodeHello(name, cols, rows, glyphs) {
   const nameBytes = textEncoder.encode(name).subarray(0, MAX_NAME_BYTES);
   const charset = textEncoder.encode(glyphs.join(''));
@@ -151,6 +149,7 @@ export function encodeBye() {
   return Uint8Array.of(MSG_BYE);
 }
 
+// Frame decoding
 export function decodeKeyframe(buf) {
   if (buf.length < KEY_HEADER_BYTES) throw new Error('short keyframe');
   const cols = readU16(buf, 4);
@@ -169,7 +168,6 @@ export function deltaHeader(buf) {
   return { seq: readU16(buf, 1), epoch: buf[3] };
 }
 
-// Apply delta in place; throws on malformed input
 export function applyDelta(buf, grid) {
   const n = grid.length;
   if (buf[0] === MSG_DELTA_BITMASK) {
